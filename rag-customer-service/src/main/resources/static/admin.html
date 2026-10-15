@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>管理后台 - RAG智能助手</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            background: #f0f2f5;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            padding: 30px;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 2px solid #f0f2f5;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            color: #333;
+        }
+
+        .header-left {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .header .user-info {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .header .back-btn {
+            padding: 8px 20px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: opacity 0.3s;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .header .back-btn:hover {
+            opacity: 0.8;
+        }
+
+        .model-selector {
+            padding: 8px 14px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 13px;
+            outline: none;
+            cursor: pointer;
+            background: white;
+            color: #333;
+            transition: border-color 0.3s;
+            max-width: 220px;
+        }
+
+        .model-selector:focus {
+            border-color: #667eea;
+        }
+
+        .model-selector:hover {
+            border-color: #667eea;
+        }
+
+        .stats {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .stats .stat-item {
+            background: #f8f9fa;
+            padding: 12px 20px;
+            border-radius: 10px;
+            flex: 1;
+        }
+
+        .stats .stat-item .number {
+            font-size: 28px;
+            font-weight: 700;
+            color: #667eea;
+        }
+
+        .stats .stat-item .label {
+            font-size: 14px;
+            color: #888;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        table th {
+            background: #f8f9fa;
+            padding: 12px 14px;
+            text-align: left;
+            font-weight: 600;
+            color: #555;
+            font-size: 13px;
+        }
+
+        table td {
+            padding: 12px 14px;
+            border-bottom: 1px solid #f0f2f5;
+            font-size: 14px;
+            color: #333;
+        }
+
+        table tr:hover {
+            background: #f8f9fa;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 2px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .badge.admin {
+            background: #fff3e0;
+            color: #e67e22;
+        }
+
+        .badge.user {
+            background: #e8f5e9;
+            color: #27ae60;
+        }
+
+        .btn-delete {
+            padding: 4px 14px;
+            background: #e74c3c;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: opacity 0.3s;
+        }
+
+        .btn-delete:hover {
+            opacity: 0.8;
+        }
+
+        .btn-delete:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .empty {
+            text-align: center;
+            color: #999;
+            padding: 40px 0;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 12px 24px;
+            border-radius: 10px;
+            color: white;
+            font-size: 14px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            z-index: 1000;
+        }
+
+        .toast.show {
+            opacity: 1;
+        }
+
+        .toast.success {
+            background: #27ae60;
+        }
+
+        .toast.error {
+            background: #e74c3c;
+        }
+
+        .toast.info {
+            background: #3498db;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <div class="header-left">
+            <h1>⚙️ 用户管理</h1>
+            <span style="color:#888;font-size:14px;">RAG智能助手 - 管理后台</span>
+        </div>
+        <div class="header-right">
+            <select class="model-selector" id="modelSelector" onchange="switchModel()">
+                <option value="">加载中...</option>
+            </select>
+            <span class="user-info" id="userInfo">👤 admin</span>
+            <a href="/" class="back-btn">← 返回对话</a>
+        </div>
+    </div>
+
+    <div class="stats">
+        <div class="stat-item">
+            <div class="number" id="totalUsers">0</div>
+            <div class="label">总用户数</div>
+        </div>
+        <div class="stat-item">
+            <div class="number" id="adminCount">0</div>
+            <div class="label">管理员</div>
+        </div>
+        <div class="stat-item">
+            <div class="number" id="userCount">0</div>
+            <div class="label">普通用户</div>
+        </div>
+    </div>
+
+    <table>
+        <thead>
+        <tr>
+            <th>ID</th>
+            <th>用户名</th>
+            <th>邮箱</th>
+            <th>角色</th>
+            <th>注册时间</th>
+            <th>操作</th>
+        </tr>
+        </thead>
+        <tbody id="userTableBody">
+        <tr>
+            <td colspan="6" class="empty">加载中...</td>
+        </tr>
+        </tbody>
+    </table>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+    const token = localStorage.getItem('token');
+    const username = localStorage.getItem('username');
+
+    if (!token || !username) {
+        window.location.href = '/';
+    }
+
+    document.getElementById('userInfo').textContent = '👤 ' + username;
+
+    // ============================================================
+    //  模型切换
+    // ============================================================
+    async function loadModels() {
+        try {
+            const response = await fetch('/api/model/list');
+            const result = await response.json();
+
+            if (result.success) {
+                const selector = document.getElementById('modelSelector');
+                selector.innerHTML = '';
+
+                result.models.forEach(model => {
+                    const option = document.createElement('option');
+                    option.value = model.id;
+                    option.textContent = model.name;
+                    if (model.id === result.current) {
+                        option.selected = true;
+                    }
+                    selector.appendChild(option);
+                });
+            }
+        } catch (error) {
+            console.error('加载模型列表失败:', error);
+        }
+    }
+
+    async function switchModel() {
+        const selector = document.getElementById('modelSelector');
+        const model = selector.value;
+
+        if (!model) return;
+
+        try {
+            const response = await fetch('/api/model/switch?model=' + encodeURIComponent(model), {
+                method: 'POST'
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                showToast('🔄 已切换到：' + selector.options[selector.selectedIndex].text, 'success');
+            } else {
+                showToast('⚠️ ' + result.message, 'error');
+            }
+        } catch (error) {
+            console.error('切换模型失败:', error);
+            showToast('⚠️ 切换模型失败', 'error');
+        }
+    }
+
+    // ============================================================
+    //  加载用户列表
+    // ============================================================
+    async function loadUsers() {
+        try {
+            const response = await fetch('/api/admin/users?adminUsername=' + username);
+            const result = await response.json();
+
+            if (!result.success) {
+                if (result.message === '无权限访问') {
+                    showToast('您没有管理员权限', 'error');
+                    setTimeout(() => {
+                        window.location.href = '/';
+                    }, 2000);
+                }
+                return;
+            }
+
+            const users = result.data || [];
+            const tbody = document.getElementById('userTableBody');
+
+            document.getElementById('totalUsers').textContent = users.length;
+            const adminCount = users.filter(u => u.admin).length;
+            document.getElementById('adminCount').textContent = adminCount;
+            document.getElementById('userCount').textContent = users.length - adminCount;
+
+            if (users.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="empty">暂无用户</td></tr>';
+                return;
+            }
+
+            let html = '';
+            users.forEach(user => {
+                const isAdmin = user.admin;
+                const createdTime = user.createdAt ? new Date(user.createdAt).toLocaleString('zh-CN') : '未知';
+                const isCurrentUser = user.username === username;
+
+                html += `
+                    <tr>
+                        <td>${user.id}</td>
+                        <td><strong>${user.username}</strong> ${isCurrentUser ? '👈' : ''}</td>
+                        <td>${user.email || '-'}</td>
+                        <td><span class="badge ${isAdmin ? 'admin' : 'user'}">${isAdmin ? '👑 管理员' : '👤 用户'}</span></td>
+                        <td>${createdTime}</td>
+                        <td>
+                            <button class="btn-delete"
+                                onclick="deleteUser(${user.id})"
+                                ${isCurrentUser || isAdmin ? 'disabled' : ''}>
+                                ${isCurrentUser ? '当前用户' : isAdmin ? '管理员' : '删除'}
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            tbody.innerHTML = html;
+
+        } catch (error) {
+            console.error('加载用户列表失败:', error);
+            document.getElementById('userTableBody').innerHTML = '<tr><td colspan="6" class="empty">加载失败，请重试</td></tr>';
+        }
+    }
+
+    // ============================================================
+    //  删除用户
+    // ============================================================
+    async function deleteUser(id) {
+        if (!confirm('确定要删除该用户吗？此操作不可撤销！')) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/admin/users/${id}?adminUsername=${username}`, {
+                method: 'DELETE'
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                showToast('✅ 用户已删除', 'success');
+                loadUsers();
+            } else {
+                showToast('❌ ' + result.message, 'error');
+            }
+        } catch (error) {
+            showToast('❌ 删除失败，请重试', 'error');
+        }
+    }
+
+    // ============================================================
+    //  Toast 提示
+    // ============================================================
+    let toastTimer;
+
+    function showToast(message, type) {
+        const toast = document.getElementById('toast');
+        toast.textContent = message;
+        toast.className = 'toast ' + type + ' show';
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => {
+            toast.classList.remove('show');
+        }, 3000);
+    }
+
+    // ============================================================
+    //  初始化
+    // ============================================================
+    loadUsers();
+    loadModels();
+</script>
+</body>
+</html>
